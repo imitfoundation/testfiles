@@ -1,0 +1,10 @@
+pragma solidity ^0.8.9;
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+
+contract MyNft is ERC721Enumerable, Ownable {
+uint public constant PRICE = 0.2 ether;
+string public baseTokenURI;
+mapping (address => uint[]) nftOwner;
+event MintNft(address senderAddress, uint256 nftToken);
+}
