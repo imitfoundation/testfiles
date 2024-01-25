@@ -1,29 +1,29 @@
-// SPDX-License-Identifier: MIT
+//SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
-import "@openzeppelin/contracts@5.0.1/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts@5.0.1/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@openzeppelin/contracts@5.0.1/access/Ownable.sol";
+contract imitsepoliatest is ERC721Enumerable, Ownable(msg.sender) {
 
-contract ImitInvestmentTokenTest is ERC721, ERC721URIStorage, Ownable {
-    uint256 private _nextTokenId;
-        string public baseTokenURI;
+    uint public constant PRICE = 0.2 ether;
+    string public baseTokenURI;
     uint[] soldedTokenIds;
     mapping (address => uint[]) nftOwner;
     event MintNft(address senderAddress, uint256 nftToken);
-    uint public constant PRICE = 0.2 ether;
 
-    constructor(address initialOwner)
-        ERC721("Imit investment token test", "IMITT")
-        Ownable(initialOwner)
-    {}
-
-    function safeMint(address to, string memory uri) public onlyOwner {
-        uint256 tokenId = _nextTokenId++;
-        _safeMint(to, tokenId);
-        _setTokenURI(tokenId, uri);
+    constructor(string memory baseURI)  ERC721("imitsepoliatest", "NFT") {
+        setBaseURI(baseURI);
     }
-         modifier checkTokenStatus(uint _tokenId) {
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return baseTokenURI;
+    }
+
+    function setBaseURI(string memory _baseTokenURI) public onlyOwner {
+        baseTokenURI = _baseTokenURI;
+    }
+
+     modifier checkTokenStatus(uint _tokenId) {
         bool isTokenSold = false;
         for (uint i = 0; i < soldedTokenIds.length; i++) {
             if(soldedTokenIds[i] == _tokenId) {
@@ -35,14 +35,21 @@ contract ImitInvestmentTokenTest is ERC721, ERC721URIStorage, Ownable {
         _;
     }
 
-        function mintNFT(uint _tokenId) public payable checkTokenStatus(_tokenId) {
+    function reserveNFT(uint _tokenId) public onlyOwner checkTokenStatus(_tokenId) {
+        _safeMint(msg.sender, _tokenId);
+        nftOwner[msg.sender].push(_tokenId);
+        soldedTokenIds.push(_tokenId);
+        emit MintNft(msg.sender, _tokenId);
+    }
+
+    function mintNFT(uint _tokenId) public payable checkTokenStatus(_tokenId) {
         require(msg.value >= PRICE, "Not enough ether to purchase NFTs.");
         _safeMint(msg.sender, _tokenId);
         soldedTokenIds.push(_tokenId);
         emit MintNft(msg.sender, _tokenId);
-        
     }
-        function tokensOfOwner(address _owner) external view returns (uint[] memory) {
+
+    function tokensOfOwner(address _owner) external view returns (uint[] memory) {
         return nftOwner[_owner];
     }
 
@@ -51,25 +58,5 @@ contract ImitInvestmentTokenTest is ERC721, ERC721URIStorage, Ownable {
         require(balance > 0, "No ether left to withdraw");
         (bool success, ) = (msg.sender).call{value: balance}("");
         require(success, "Transfer failed.");
-    }
-
-    // The following functions are overrides required by Solidity.
-
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override(ERC721, ERC721URIStorage)
-        returns (string memory)
-    {
-        return super.tokenURI(tokenId);
-    }
-
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(ERC721, ERC721URIStorage)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
     }
 }
