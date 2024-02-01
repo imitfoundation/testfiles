@@ -6,9 +6,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract imitnewcontract5 is ERC721Enumerable, Ownable(msg.sender), ReentrancyGuard {
-    uint public constant MAX_SUPPLY = 5;
-    uint public constant PRICE = 0.1 ether;
-    uint public constant MAX_PER_ACCOUNT = 5;
+    uint public constant MAX_SUPPLY = 10;
+    uint public constant PRICE = 4 ether;
+    uint public constant MAX_PER_ACCOUNT = 10;
     uint private _currentId = 1;
 
     string public baseURI;
