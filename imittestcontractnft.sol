@@ -1,62 +1,86 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
-import "@openzeppelin/contracts/access/Ownable.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.20;
+
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract MyNft is ERC721Enumerable, Ownable {
+contract imitnewcontract5 is ERC721Enumerable, Ownable(msg.sender), ReentrancyGuard {
+    uint public constant MAX_SUPPLY = 5;
+    uint public constant PRICE = 0.1 ether;
+    uint public constant MAX_PER_ACCOUNT = 5;
+    uint private _currentId = 1;
 
-    uint public constant PRICE = 0.2 ether;
-    string public baseTokenURI;
-    uint[] soldedTokenIds;
-    mapping (address => uint[]) nftOwner;
-    event MintNft(address senderAddress, uint256 nftToken);
+    string public baseURI;
+    string private _contractURI;
 
-    constructor(string memory baseURI)  ERC721("Imit nft", "NFT") {
-        setBaseURI(baseURI);
+    bool public saleIsActive = true;
+
+    mapping (address => uint) private _alreadyMinted;
+
+    constructor(string memory _initialBaseURI, string memory _initialContractURI) ERC721("Imit App test", "IMIT") {
+        baseURI = _initialBaseURI;
+        _contractURI = _initialContractURI;
     }
 
-    function _baseURI() internal view virtual override returns (string memory) {
-        return baseTokenURI;
+    function contractURI() public view returns (string memory) {
+        return _contractURI;
     }
 
-    function setBaseURI(string memory _baseTokenURI) public onlyOwner {
-        baseTokenURI = _baseTokenURI;
+    function _baseURI() internal view override returns (string memory) {
+        return baseURI;
     }
 
-     modifier checkTokenStatus(uint _tokenId) {
-        bool isTokenSold = false;
-        for (uint i = 0; i < soldedTokenIds.length; i++) {
-            if(soldedTokenIds[i] == _tokenId) {
-                isTokenSold = true;
-                break;
-            }
+    function setBaseURI(string memory uri) public onlyOwner {
+        baseURI = uri;
+    }
+
+    function setContractURI(string memory uri) public onlyOwner {
+        _contractURI = uri;
+    }
+
+    function totalSupply() public view override returns (uint) {
+        return _currentId;
+    }
+
+    function alreadyMinted(address addr) public view returns (uint) {
+        return _alreadyMinted[addr];
+    }
+
+    function activateSales(bool _isActive) public onlyOwner {
+        saleIsActive = _isActive;
+    }
+
+    function mintNFTs(uint amount) public payable nonReentrant {
+        address sender = msg.sender;
+
+        require(saleIsActive, "Sale is closed");
+        require(amount != 0, "Amount should not be a zero");
+        require(amount <= (MAX_PER_ACCOUNT - _alreadyMinted[sender]), "You have exceeded max NFT count for your account");
+        require(amount <= (MAX_SUPPLY - _currentId), "Not enough NFT left to mint");
+        require(msg.value >= amount * PRICE, "Not enough ether to purchase NFT");
+
+        _internalMint(sender, amount);
+    }
+
+    function mintNFTsOwner(uint amount) public onlyOwner {
+        require(amount != 0, "Amount should not be a zero");
+        require(amount <= (MAX_SUPPLY - _currentId), "Not enough tokens left to mint");
+        _internalMint(msg.sender, amount);
+    }
+
+    function _internalMint(address to, uint amount) private {
+        _alreadyMinted[to] += amount;
+        for (uint i = 0; i < amount; i++) {
+            _currentId++;
+            _safeMint(to, _currentId);
         }
-        require(!isTokenSold, "Token is sold");
-        _;
     }
 
-    function reserveNFT(uint _tokenId) public onlyOwner checkTokenStatus(_tokenId) {
-        _safeMint(msg.sender, _tokenId);
-        nftOwner[msg.sender].push(_tokenId);
-        soldedTokenIds.push(_tokenId);
-        emit MintNft(msg.sender, _tokenId);
-    }
-
-    function mintNFT(uint _tokenId) public payable checkTokenStatus(_tokenId) {
-        require(msg.value >= PRICE, "Not enough ether to purchase NFTs.");
-        _safeMint(msg.sender, _tokenId);
-        soldedTokenIds.push(_tokenId);
-        emit MintNft(msg.sender, _tokenId);
-    }
-
-    function tokensOfOwner(address _owner) external view returns (uint[] memory) {
-        return nftOwner[_owner];
-    }
-
-    function withdraw() public payable onlyOwner {
+    function withdraw() public onlyOwner {
         uint balance = address(this).balance;
-        require(balance > 0, "No ether left to withdraw");
-        (bool success, ) = (msg.sender).call{value: balance}("");
-        require(success, "Transfer failed.");
+        require(balance > 0, "No ether to withdraw");
+        (bool success, ) = msg.sender.call{value:balance}("");
+        require(success, "Transfer failed");
     }
 }
